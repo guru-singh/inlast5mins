@@ -85,8 +85,8 @@ export default function Home() {
           </div>
           <h1 className="text-4xl font-black tracking-normal text-slate-950 sm:text-6xl">inLast5Mins</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">
-            Pull the last 24 hours of FIFA 2026 conversation from X, shape it into five ready-to-post drafts,
-            pair each with an image, and publish the selected posts.
+            Ask Grok for a late-May 2026 FIFA World Cup thread, shape it into six ready-to-post tweets,
+            pair each with a public image, and publish the selected posts.
           </p>
         </div>
         <button
@@ -109,7 +109,7 @@ export default function Home() {
         <Insight title="Latest match score" value={data?.summary.score ?? "Click the button to scan X."} />
         <Insight title="Controversy" value={data?.summary.controversy ?? "Waiting for live signals."} />
         <Insight title="Fan reaction" value={data?.summary.fanReaction ?? "Drafts will appear below."} />
-        <Insight title="Also trending" value={data?.summary.extra ?? "Demo mode works without credentials."} />
+        <Insight title="Also trending" value={data?.summary.extra ?? "Add XAI_API_KEY to fetch real Grok drafts."} />
       </section>
 
       <section className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
@@ -156,7 +156,7 @@ export default function Home() {
 
           {!data ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
-              Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> to generate five draft posts.
+              Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> to generate six Grok draft posts.
             </div>
           ) : null}
         </div>
@@ -164,9 +164,7 @@ export default function Home() {
         <aside className="h-fit rounded-md bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/15">
           <h2 className="text-xl font-black">Publish queue</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            {data?.mode === "live"
-              ? "Live X data is active."
-              : "Demo mode is active until X credentials are added to .env.local."}
+            Grok generation is used for every new draft request.
           </p>
 
           <div className="mt-5 rounded-md bg-white/8 p-4">
@@ -195,14 +193,24 @@ export default function Home() {
                 <div key={result.id} className="rounded-md bg-white/8 p-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-bold">{result.id}</span>
-                    <span className="capitalize text-amber-200">{result.status}</span>
+                    <span
+                      className={`capitalize ${
+                        result.status === "failed" ? "text-red-200" : "text-amber-200"
+                      }`}
+                    >
+                      {result.status}
+                    </span>
                   </div>
                   {result.url ? (
                     <a href={result.url} target="_blank" className="mt-2 inline-flex items-center gap-1 text-teal-200">
                       Open on X <ExternalLink size={14} />
                     </a>
                   ) : null}
-                  {result.error ? <p className="mt-2 text-red-200">{result.error}</p> : null}
+                  {result.error ? (
+                    <p className={result.status === "posted" ? "mt-2 text-amber-100" : "mt-2 text-red-200"}>
+                      {result.error}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>

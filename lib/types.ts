@@ -18,7 +18,7 @@ export type DraftPost = {
 
 export type DraftResponse = {
   generatedAt: string;
-  mode: "live" | "demo";
+  mode: "grok";
   signals: XSignal[];
   drafts: DraftPost[];
   summary: {

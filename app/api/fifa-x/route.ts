@@ -1,23 +1,21 @@
 import { NextResponse } from "next/server";
-import { createDrafts, summarizeSignals } from "@/lib/drafts";
-import { fetchFifaSignals } from "@/lib/x-api";
+import { generateFifaDraftsWithGrok } from "@/lib/grok";
 
 export async function POST() {
   try {
-    const { mode, signals } = await fetchFifaSignals();
-    const drafts = createDrafts(signals);
+    const { mode, signals, drafts, summary } = await generateFifaDraftsWithGrok();
 
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
       mode,
       signals,
       drafts,
-      summary: summarizeSignals(signals)
+      summary
     });
   } catch (error) {
     return NextResponse.json(
       {
-        message: error instanceof Error ? error.message : "Unable to fetch FIFA 2026 details from X."
+        message: error instanceof Error ? error.message : "Unable to fetch FIFA 2026 content from Grok."
       },
       { status: 500 }
     );

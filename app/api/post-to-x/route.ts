@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
         results.push({
           id: draft.id,
           status: result.status,
-          url: result.url
+          url: result.url,
+          error: result.warning
         });
       } catch (error) {
         results.push({

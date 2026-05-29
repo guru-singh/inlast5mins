@@ -81,13 +81,22 @@ export async function publishTweet(content: string, imageUrl?: string) {
   const credentials = getOAuthCredentials();
 
   if (!credentials) {
-    return {
-      status: "simulated" as const,
-      url: "https://x.com/home"
-    };
+    throw new Error(
+      "Missing X posting credentials. Add X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, and X_ACCESS_TOKEN_SECRET to .env.local, then restart the dev server."
+    );
   }
 
-  const mediaId = imageUrl ? await uploadImage(imageUrl, credentials) : undefined;
+  let mediaId: string | undefined;
+  let imageWarning: string | undefined;
+
+  if (imageUrl) {
+    try {
+      mediaId = await uploadImage(imageUrl, credentials);
+    } catch (error) {
+      imageWarning = error instanceof Error ? error.message : "Image upload failed.";
+    }
+  }
+
   const body = {
     text: content,
     ...(mediaId ? { media: { media_ids: [mediaId] } } : {})
@@ -113,12 +122,20 @@ export async function publishTweet(content: string, imageUrl?: string) {
 
   return {
     status: "posted" as const,
-    url: `https://x.com/i/web/status/${payload.data.id}`
+    url: `https://x.com/i/web/status/${payload.data.id}`,
+    warning: imageWarning
   };
 }
 
 async function uploadImage(imageUrl: string, credentials: OAuthCredentials) {
-  const imageResponse = await fetch(imageUrl, { cache: "no-store" });
+  const imageResponse = await fetch(imageUrl, {
+    cache: "no-store",
+    headers: {
+      accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    }
+  });
 
   if (!imageResponse.ok) {
     throw new Error(`Image fetch failed: ${imageResponse.status}`);
