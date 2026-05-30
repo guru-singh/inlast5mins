@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ExternalLink, Loader2, Radio, Send, Sparkles } from "lucide-react";
+import { BriefcaseBusiness, Check, ExternalLink, Loader2, Radio, Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DraftPost, DraftResponse, PublishResult } from "@/lib/types";
 
@@ -9,6 +9,7 @@ export default function Home() {
   const [data, setData] = useState<DraftResponse | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isFetching, setIsFetching] = useState(false);
+  const [isFetchingGlobal, setIsFetchingGlobal] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublishResult[]>([]);
@@ -37,6 +38,28 @@ export default function Home() {
       setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
     } finally {
       setIsFetching(false);
+    }
+  }
+
+  async function fetchGlobalIcons() {
+    setIsFetchingGlobal(true);
+    setError("");
+    setResults([]);
+
+    try {
+      const response = await fetch("/api/global-icons", { method: "POST" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to fetch global icons news.");
+      }
+
+      setData(payload);
+      setSelected(new Set(payload.drafts.map((draft: DraftPost) => draft.id)));
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+    } finally {
+      setIsFetchingGlobal(false);
     }
   }
 
@@ -89,14 +112,24 @@ export default function Home() {
             pair each with a public image, and publish the selected posts.
           </p>
         </div>
-        <button
-          onClick={fetchFifaDetails}
-          disabled={isFetching}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-5 font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isFetching ? <Loader2 className="animate-spin" size={19} /> : <Sparkles size={19} />}
-          FIFA 2026 on X
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
+          <button
+            onClick={fetchFifaDetails}
+            disabled={isFetching || isFetchingGlobal}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-5 font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isFetching ? <Loader2 className="animate-spin" size={19} /> : <Sparkles size={19} />}
+            FIFA 2026 on X
+          </button>
+          <button
+            onClick={fetchGlobalIcons}
+            disabled={isFetching || isFetchingGlobal}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-teal-700 px-5 font-bold text-white shadow-lg shadow-teal-900/15 transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isFetchingGlobal ? <Loader2 className="animate-spin" size={19} /> : <BriefcaseBusiness size={19} />}
+            Global icons news
+          </button>
+        </div>
       </header>
 
       {error ? (
@@ -106,9 +139,9 @@ export default function Home() {
       ) : null}
 
       <section className="grid gap-4 py-6 lg:grid-cols-4">
-        <Insight title="Latest match score" value={data?.summary.score ?? "Click the button to scan X."} />
-        <Insight title="Controversy" value={data?.summary.controversy ?? "Waiting for live signals."} />
-        <Insight title="Fan reaction" value={data?.summary.fanReaction ?? "Drafts will appear below."} />
+        <Insight title={data?.topic === "global-icons" ? "Research mode" : "Latest match score"} value={data?.summary.score ?? "Click a button to ask Grok."} />
+        <Insight title={data?.topic === "global-icons" ? "Verification" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
+        <Insight title={data?.topic === "global-icons" ? "People covered" : "Fan reaction"} value={data?.summary.fanReaction ?? "Drafts will appear below."} />
         <Insight title="Also trending" value={data?.summary.extra ?? "Add XAI_API_KEY to fetch real Grok drafts."} />
       </section>
 
@@ -150,13 +183,28 @@ export default function Home() {
                   }}
                   className="min-h-36 w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:bg-white"
                 />
+                {draft.suggestedVisual || draft.source ? (
+                  <div className="space-y-2 rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                    {draft.suggestedVisual ? (
+                      <p>
+                        <span className="font-black text-slate-800">Visual:</span> {draft.suggestedVisual}
+                      </p>
+                    ) : null}
+                    {draft.source ? (
+                      <p>
+                        <span className="font-black text-slate-800">Source:</span> {draft.source}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}
 
           {!data ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
-              Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> to generate six Grok draft posts.
+              Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> or{" "}
+              <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts.
             </div>
           ) : null}
         </div>
@@ -174,7 +222,7 @@ export default function Home() {
             </div>
             <div className="mt-3 flex items-center justify-between text-sm">
               <span>Source window</span>
-              <strong>24 hrs</strong>
+              <strong>{data?.sourceWindow ?? "-"}</strong>
             </div>
           </div>
 

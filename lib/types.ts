@@ -14,11 +14,15 @@ export type DraftPost = {
   content: string;
   imageUrl: string;
   sourceTweetIds: string[];
+  suggestedVisual?: string;
+  source?: string;
 };
 
 export type DraftResponse = {
   generatedAt: string;
   mode: "grok";
+  topic: "fifa" | "global-icons";
+  sourceWindow: string;
   signals: XSignal[];
   drafts: DraftPost[];
   summary: {
