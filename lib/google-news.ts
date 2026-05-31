@@ -112,11 +112,11 @@ function decodeXml(value: string) {
 }
 
 function toPostText(item: RssItem) {
-  const sourceLine = `\n\nSource: ${item.link}`;
+  const sourceLine = `\n\n#FIFA2026 #WorldCup2026\nSource: ${item.link}`;
   const maxTitleLength = 280 - sourceLine.length - 3;
   const title =
     item.title.length > maxTitleLength ? `${item.title.slice(0, Math.max(40, maxTitleLength)).trim()}...` : item.title;
   const base = `${title}${sourceLine}`;
 
-  return base.length <= 280 ? base : `${item.title}\n\nSource: ${item.link}`;
+  return base.length <= 280 ? base : `${item.title}\n\n#FIFA2026 #WorldCup2026\nSource: ${item.link}`;
 }
