@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { BriefcaseBusiness, Check, ExternalLink, Loader2, Radio, Send, Sparkles } from "lucide-react";
+import { BriefcaseBusiness, Check, ExternalLink, Loader2, Newspaper, Radio, Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DraftPost, DraftResponse, PublishResult } from "@/lib/types";
 
@@ -10,6 +10,7 @@ export default function Home() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isFetching, setIsFetching] = useState(false);
   const [isFetchingGlobal, setIsFetchingGlobal] = useState(false);
+  const [isFetchingGoogleNews, setIsFetchingGoogleNews] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublishResult[]>([]);
@@ -18,6 +19,9 @@ export default function Home() {
     () => data?.drafts.filter((draft) => selected.has(draft.id)) ?? [],
     [data, selected]
   );
+  const hasDrafts = Boolean(data?.drafts.length);
+  const allDraftsSelected = hasDrafts && selectedDrafts.length === data?.drafts.length;
+  const someDraftsSelected = selectedDrafts.length > 0 && !allDraftsSelected;
 
   async function fetchFifaDetails() {
     setIsFetching(true);
@@ -55,11 +59,33 @@ export default function Home() {
       }
 
       setData(payload);
-      setSelected(new Set(payload.drafts.map((draft: DraftPost) => draft.id)));
+      setSelected(new Set());
     } catch (fetchError) {
       setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
     } finally {
       setIsFetchingGlobal(false);
+    }
+  }
+
+  async function fetchGoogleNewsFifa() {
+    setIsFetchingGoogleNews(true);
+    setError("");
+    setResults([]);
+
+    try {
+      const response = await fetch("/api/google-news-fifa", { method: "POST" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to fetch Google News FIFA 2026.");
+      }
+
+      setData(payload);
+      setSelected(new Set(payload.drafts.map((draft: DraftPost) => draft.id)));
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+    } finally {
+      setIsFetchingGoogleNews(false);
     }
   }
 
@@ -98,6 +124,12 @@ export default function Home() {
     setSelected(next);
   }
 
+  function toggleAllDrafts() {
+    if (!data) return;
+
+    setSelected(allDraftsSelected ? new Set() : new Set(data.drafts.map((draft) => draft.id)));
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8">
       <header className="flex flex-col gap-5 border-b border-slate-900/10 pb-6 md:flex-row md:items-center md:justify-between">
@@ -112,10 +144,10 @@ export default function Home() {
             pair each with a public image, and publish the selected posts.
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row lg:flex-wrap lg:justify-end">
           <button
             onClick={fetchFifaDetails}
-            disabled={isFetching || isFetchingGlobal}
+            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-5 font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isFetching ? <Loader2 className="animate-spin" size={19} /> : <Sparkles size={19} />}
@@ -123,11 +155,19 @@ export default function Home() {
           </button>
           <button
             onClick={fetchGlobalIcons}
-            disabled={isFetching || isFetchingGlobal}
+            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-teal-700 px-5 font-bold text-white shadow-lg shadow-teal-900/15 transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isFetchingGlobal ? <Loader2 className="animate-spin" size={19} /> : <BriefcaseBusiness size={19} />}
             Global icons news
+          </button>
+          <button
+            onClick={fetchGoogleNewsFifa}
+            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 font-bold text-slate-950 shadow-lg shadow-slate-950/10 ring-1 ring-slate-900/10 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isFetchingGoogleNews ? <Loader2 className="animate-spin" size={19} /> : <Newspaper size={19} />}
+            Google News FIFA 2026
           </button>
         </div>
       </header>
@@ -139,14 +179,33 @@ export default function Home() {
       ) : null}
 
       <section className="grid gap-4 py-6 lg:grid-cols-4">
-        <Insight title={data?.topic === "global-icons" ? "Research mode" : "Latest match score"} value={data?.summary.score ?? "Click a button to ask Grok."} />
-        <Insight title={data?.topic === "global-icons" ? "Verification" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
-        <Insight title={data?.topic === "global-icons" ? "People covered" : "Fan reaction"} value={data?.summary.fanReaction ?? "Drafts will appear below."} />
-        <Insight title="Also trending" value={data?.summary.extra ?? "Add XAI_API_KEY to fetch real Grok drafts."} />
+        <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
+        <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
+        <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
+        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Google News uses RSS."} />
       </section>
 
       <section className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          {hasDrafts ? (
+            <label className="inline-flex cursor-pointer items-center gap-3 rounded-md bg-white/85 px-4 py-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-900/10">
+              <input
+                type="checkbox"
+                checked={allDraftsSelected}
+                ref={(input) => {
+                  if (input) input.indeterminate = someDraftsSelected;
+                }}
+                onChange={toggleAllDrafts}
+                className="h-4 w-4 accent-teal-700"
+              />
+              <span>{allDraftsSelected ? "Unselect all tweets" : "Select all tweets"}</span>
+              <span className="font-semibold text-slate-500">
+                {selectedDrafts.length}/{data?.drafts.length ?? 0}
+              </span>
+            </label>
+          ) : null}
+
+          <div className="grid gap-4 md:grid-cols-2">
           {(data?.drafts ?? []).map((draft) => (
             <article key={draft.id} className="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-900/10">
               <div className="relative aspect-[16/9] bg-slate-200">
@@ -204,15 +263,25 @@ export default function Home() {
           {!data ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
               Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> or{" "}
-              <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts.
+              <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts, or{" "}
+              <span className="font-bold text-slate-950">Google News FIFA 2026</span> to fetch the latest RSS news.
             </div>
           ) : null}
+
+          {data && !data.drafts.length ? (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
+              No FIFA 2026 Google News RSS items were published in the last 24 hours.
+            </div>
+          ) : null}
+          </div>
         </div>
 
         <aside className="h-fit rounded-md bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/15">
           <h2 className="text-xl font-black">Publish queue</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            Grok generation is used for every new draft request.
+            {data?.mode === "rss"
+              ? "Google News RSS results are filtered to the last 24 hours."
+              : "Grok generation is used for draft requests."}
           </p>
 
           <div className="mt-5 rounded-md bg-white/8 p-4">

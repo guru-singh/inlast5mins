@@ -93,7 +93,8 @@ export async function publishTweet(content: string, imageUrl?: string) {
     try {
       mediaId = await uploadImage(imageUrl, credentials);
     } catch (error) {
-      imageWarning = error instanceof Error ? error.message : "Image upload failed.";
+      const reason = error instanceof Error ? error.message : "Image upload failed.";
+      imageWarning = `Posted text only. ${reason}`;
     }
   }
 
@@ -131,7 +132,7 @@ async function uploadImage(imageUrl: string, credentials: OAuthCredentials) {
   const imageResponse = await fetch(imageUrl, {
     cache: "no-store",
     headers: {
-      accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      accept: "image/jpeg,image/png,image/gif;q=0.9,*/*;q=0.5",
       "user-agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
     }
@@ -139,6 +140,17 @@ async function uploadImage(imageUrl: string, credentials: OAuthCredentials) {
 
   if (!imageResponse.ok) {
     throw new Error(`Image fetch failed: ${imageResponse.status}`);
+  }
+
+  const contentType = imageResponse.headers.get("content-type")?.split(";")[0]?.toLowerCase() ?? "";
+  const supportedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/gif"]);
+
+  if (!supportedTypes.has(contentType)) {
+    throw new Error(
+      contentType
+        ? `Image skipped because X media upload does not support ${contentType}.`
+        : "Image skipped because the image host did not return a recognizable media type."
+    );
   }
 
   const arrayBuffer = await imageResponse.arrayBuffer();
