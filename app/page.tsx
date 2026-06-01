@@ -253,15 +253,31 @@ ${draft.content}`;
           <div className="grid gap-4 md:grid-cols-2">
           {(data?.drafts ?? []).map((draft) => (
             <article key={draft.id} className={`overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-900/10 ${isHappyFeet ? "md:col-span-2" : ""}`}>
-              <div className={`relative bg-slate-200 ${isHappyFeet ? "h-[250px]" : "aspect-[16/9]"}`}>
-                <Image
-                  src={draft.imageUrl}
-                  alt={draft.angle}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
-              </div>
+              {isHappyFeet ? (
+                <div className="grid gap-3 bg-slate-100 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {["/images/1.jpg", "/images/2.jpg", "/images/3.jpg", "/images/4.jpg"].map((imageUrl, index) => (
+                    <div key={imageUrl} className="relative h-[250px] overflow-hidden rounded-md bg-slate-200">
+                      <Image
+                        src={imageUrl}
+                        alt={`Happy Feet reference ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="relative aspect-[16/9] bg-slate-200">
+                  <Image
+                    src={draft.imageUrl}
+                    alt={draft.angle}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                </div>
+              )}
               <div className="space-y-4 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>

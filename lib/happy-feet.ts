@@ -15,7 +15,7 @@ const fieldsToShow = [
 ];
 
 const dummyReferenceImage =
-  "/images/1.jpg?1=1";
+  "/images/1.jpg";
 
 type SheetRow = Record<string, string>;
 
