@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { BriefcaseBusiness, Check, ExternalLink, Loader2, Newspaper, Radio, Send, Sparkles } from "lucide-react";
+import { BriefcaseBusiness, Check, Copy, ExternalLink, Footprints, Loader2, MessageSquare, Newspaper, Radio, Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DraftPost, DraftResponse, PublishResult } from "@/lib/types";
 
@@ -11,6 +11,7 @@ export default function Home() {
   const [isFetching, setIsFetching] = useState(false);
   const [isFetchingGlobal, setIsFetchingGlobal] = useState(false);
   const [isFetchingGoogleNews, setIsFetchingGoogleNews] = useState(false);
+  const [isFetchingHappyFeet, setIsFetchingHappyFeet] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublishResult[]>([]);
@@ -20,6 +21,8 @@ export default function Home() {
     [data, selected]
   );
   const hasDrafts = Boolean(data?.drafts.length);
+  const isBusy = isFetching || isFetchingGlobal || isFetchingGoogleNews || isFetchingHappyFeet;
+  const isHappyFeet = data?.topic === "happy-feet";
   const allDraftsSelected = hasDrafts && selectedDrafts.length === data?.drafts.length;
   const someDraftsSelected = selectedDrafts.length > 0 && !allDraftsSelected;
 
@@ -89,6 +92,28 @@ export default function Home() {
     }
   }
 
+  async function fetchHappyFeet() {
+    setIsFetchingHappyFeet(true);
+    setError("");
+    setResults([]);
+
+    try {
+      const response = await fetch("/api/happy-feet", { method: "POST" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to fetch Happy Feet record.");
+      }
+
+      setData(payload);
+      setSelected(new Set());
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+    } finally {
+      setIsFetchingHappyFeet(false);
+    }
+  }
+
   async function postToX() {
     setIsPosting(true);
     setError("");
@@ -130,6 +155,18 @@ export default function Home() {
     setSelected(allDraftsSelected ? new Set() : new Set(data.drafts.map((draft) => draft.id)));
   }
 
+  async function sendHappyFeetToChatGPT(draft: DraftPost) {
+    const prompt = `use the excat same person as below json
+
+Reference image URL:
+${draft.imageUrl}
+
+${draft.content}`;
+
+    await navigator.clipboard.writeText(prompt);
+    window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer");
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8">
       <header className="flex flex-col gap-5 border-b border-slate-900/10 pb-6 md:flex-row md:items-center md:justify-between">
@@ -147,7 +184,7 @@ export default function Home() {
         <div className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row lg:flex-wrap lg:justify-end">
           <button
             onClick={fetchFifaDetails}
-            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
+            disabled={isBusy}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-5 font-bold text-white shadow-lg shadow-slate-950/15 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isFetching ? <Loader2 className="animate-spin" size={19} /> : <Sparkles size={19} />}
@@ -155,7 +192,7 @@ export default function Home() {
           </button>
           <button
             onClick={fetchGlobalIcons}
-            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
+            disabled={isBusy}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-teal-700 px-5 font-bold text-white shadow-lg shadow-teal-900/15 transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isFetchingGlobal ? <Loader2 className="animate-spin" size={19} /> : <BriefcaseBusiness size={19} />}
@@ -163,11 +200,19 @@ export default function Home() {
           </button>
           <button
             onClick={fetchGoogleNewsFifa}
-            disabled={isFetching || isFetchingGlobal || isFetchingGoogleNews}
+            disabled={isBusy}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-white px-5 font-bold text-slate-950 shadow-lg shadow-slate-950/10 ring-1 ring-slate-900/10 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isFetchingGoogleNews ? <Loader2 className="animate-spin" size={19} /> : <Newspaper size={19} />}
             Google News FIFA 2026
+          </button>
+          <button
+            onClick={fetchHappyFeet}
+            disabled={isBusy}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-rose-700 px-5 font-bold text-white shadow-lg shadow-rose-900/15 transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isFetchingHappyFeet ? <Loader2 className="animate-spin" size={19} /> : <Footprints size={19} />}
+            Happy Feet
           </button>
         </div>
       </header>
@@ -179,15 +224,15 @@ export default function Home() {
       ) : null}
 
       <section className="grid gap-4 py-6 lg:grid-cols-4">
-        <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
-        <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
-        <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
-        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Google News uses RSS."} />
+        <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : isHappyFeet ? "Matched slot" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
+        <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : isHappyFeet ? "Persona" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
+        <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : isHappyFeet ? "Activity" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
+        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Google News and Happy Feet use public feeds."} />
       </section>
 
       <section className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4">
-          {hasDrafts ? (
+          {hasDrafts && !isHappyFeet ? (
             <label className="inline-flex cursor-pointer items-center gap-3 rounded-md bg-white/85 px-4 py-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-900/10">
               <input
                 type="checkbox"
@@ -207,41 +252,70 @@ export default function Home() {
 
           <div className="grid gap-4 md:grid-cols-2">
           {(data?.drafts ?? []).map((draft) => (
-            <article key={draft.id} className="overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-900/10">
-              <div className="relative aspect-[16/9] bg-slate-200">
-                <Image src={draft.imageUrl} alt={draft.angle} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+            <article key={draft.id} className={`overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-slate-900/10 ${isHappyFeet ? "md:col-span-2" : ""}`}>
+              <div className={`relative bg-slate-200 ${isHappyFeet ? "h-[250px]" : "aspect-[16/9]"}`}>
+                <Image
+                  src={draft.imageUrl}
+                  alt={draft.angle}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
               <div className="space-y-4 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-700">{draft.angle}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">{draft.content.length}/280 chars</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {isHappyFeet ? "JSON record" : `${draft.content.length}/280 chars`}
+                    </p>
                   </div>
-                  <button
-                    onClick={() => toggleDraft(draft.id)}
-                    aria-label={selected.has(draft.id) ? "Unselect draft" : "Select draft"}
-                    className={`grid h-9 w-9 place-items-center rounded-md ring-1 transition ${
-                      selected.has(draft.id)
-                        ? "bg-teal-700 text-white ring-teal-700"
-                        : "bg-white text-slate-500 ring-slate-300 hover:text-teal-700"
-                    }`}
-                  >
-                    <Check size={18} />
-                  </button>
+                  {!isHappyFeet ? (
+                    <button
+                      onClick={() => toggleDraft(draft.id)}
+                      aria-label={selected.has(draft.id) ? "Unselect draft" : "Select draft"}
+                      className={`grid h-9 w-9 place-items-center rounded-md ring-1 transition ${
+                        selected.has(draft.id)
+                          ? "bg-teal-700 text-white ring-teal-700"
+                          : "bg-white text-slate-500 ring-slate-300 hover:text-teal-700"
+                      }`}
+                    >
+                      <Check size={18} />
+                    </button>
+                  ) : null}
                 </div>
-                <textarea
-                  value={draft.content}
-                  onChange={(event) => {
-                    if (!data) return;
-                    setData({
-                      ...data,
-                      drafts: data.drafts.map((item) =>
-                        item.id === draft.id ? { ...item, content: event.target.value } : item
-                      )
-                    });
-                  }}
-                  className="min-h-36 w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:bg-white"
-                />
+                {isHappyFeet ? (
+                  <div className="space-y-3">
+                    <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-black text-rose-800">
+                      use the excat same person as below json
+                    </p>
+                    <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-950 p-4 text-sm leading-6 text-slate-50">
+                      {draft.content}
+                    </pre>
+                    <button
+                      onClick={() => sendHappyFeetToChatGPT(draft)}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-rose-700"
+                    >
+                      <MessageSquare size={17} />
+                      Copy prompt and open ChatGPT
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={draft.content}
+                    onChange={(event) => {
+                      if (!data) return;
+                      setData({
+                        ...data,
+                        drafts: data.drafts.map((item) =>
+                          item.id === draft.id ? { ...item, content: event.target.value } : item
+                        )
+                      });
+                    }}
+                    className="min-h-36 w-full resize-none rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-teal-600 focus:bg-white"
+                  />
+                )}
                 {draft.suggestedVisual || draft.source ? (
                   <div className="space-y-2 rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-600">
                     {draft.suggestedVisual ? (
@@ -264,7 +338,8 @@ export default function Home() {
             <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
               Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> or{" "}
               <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts, or{" "}
-              <span className="font-bold text-slate-950">Google News FIFA 2026</span> to fetch the latest RSS news.
+              <span className="font-bold text-slate-950">Google News FIFA 2026</span> to fetch the latest RSS news, or{" "}
+              <span className="font-bold text-slate-950">Happy Feet</span> to load the current sheet prompt.
             </div>
           ) : null}
 
@@ -279,7 +354,9 @@ export default function Home() {
         <aside className="h-fit rounded-md bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/15">
           <h2 className="text-xl font-black">Publish queue</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            {data?.mode === "rss"
+            {isHappyFeet
+              ? "Happy Feet loads one Google Sheet record for the current India time slot."
+              : data?.mode === "rss"
               ? "Google News RSS results are filtered to the last 24 hours."
               : "Grok generation is used for draft requests."}
           </p>
@@ -297,7 +374,7 @@ export default function Home() {
 
           <button
             onClick={postToX}
-            disabled={!selectedDrafts.length || isPosting}
+            disabled={!selectedDrafts.length || isPosting || isHappyFeet}
             className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-amber-400 px-4 font-black text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPosting ? <Loader2 className="animate-spin" size={19} /> : <Send size={18} />}
