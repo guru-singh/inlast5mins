@@ -46,11 +46,23 @@ type FeedItem = {
 type HappyNewsItem = {
   title: string;
   summary: string;
-  happinessScore: number;
+  score: number;
+  category: string;
+  xPost: string;
   source: string;
   url: string;
   publishedAt: string;
-  reason: string;
+};
+
+type HappyNewsAnalysis = {
+  original_id: string;
+  analysis: {
+    is_positive: boolean;
+    score: number;
+    category: string;
+    summary: string;
+    x_post: string;
+  };
 };
 
 export async function fetchHappyNews(): Promise<{
@@ -88,23 +100,44 @@ export async function fetchHappyNews(): Promise<{
         {
           role: "system",
           content:
-            "You are a precise news editor. Return only valid JSON. Remove duplicates, score happiness from 1 to 10, summarize accurately, and keep only items with score >= 8."
+            "You are a warm, plainspoken social editor for genuinely positive news. Return only valid JSON. No markdown."
         },
         {
           role: "user",
-          content: `From these RSS items published in the last 48 hours, remove duplicates, score happiness 1-10, generate concise summaries, keep only score >= 8, and return the top 20 highest-score items.
+          content: `Analyze these RSS items from the last 48 hours.
+
+For each candidate article, apply this exact analysis shape:
+{
+  "is_positive": true,
+  "score": 1-10,
+  "category": "",
+  "summary": "",
+  "x_post": ""
+}
+
+Rules:
+- Remove duplicates first.
+- Only keep genuinely positive news.
+- Summary must be exactly 2 sentences.
+- x_post must sound like a real person.
+- No AI tone.
+- No corporate language.
+- No journalist clichés.
+- x_post maximum 280 characters.
+- Return the top 20 strongest positive items, sorted by score descending.
 
 Return this exact JSON shape:
 {
   "items": [
     {
-      "title": "article title",
-      "summary": "1 sentence happy-news summary under 220 characters",
-      "happinessScore": 8,
-      "source": "publisher/feed source",
-      "url": "source URL",
-      "publishedAt": "ISO date",
-      "reason": "short reason for the score"
+      "original_id": "the RSS item id",
+      "analysis": {
+        "is_positive": true,
+        "score": 8,
+        "category": "animal rescue",
+        "summary": "Two sentences exactly. Keep it factual and grounded.",
+        "x_post": "A natural post under 280 characters, written like a real person."
+      }
     }
   ]
 }
@@ -123,9 +156,27 @@ ${JSON.stringify(articles.slice(0, 120), null, 2)}`
   }
 
   const parsed = parseOpenAIHappyNews(extractText(payload));
+  const articlesById = new Map(articles.map((article) => [article.id, article]));
   const items = parsed.items
-    .filter((item) => item.happinessScore >= 8)
-    .sort((a, b) => b.happinessScore - a.happinessScore)
+    .filter((item) => item.analysis.is_positive)
+    .map((item) => {
+      const article = articlesById.get(item.original_id);
+
+      if (!article) return null;
+
+      return {
+        title: article.title,
+        summary: item.analysis.summary,
+        score: clampScore(item.analysis.score),
+        category: item.analysis.category,
+        xPost: item.analysis.x_post,
+        source: article.source,
+        url: article.link,
+        publishedAt: article.pubDate
+      } satisfies HappyNewsItem;
+    })
+    .filter((item): item is HappyNewsItem => Boolean(item))
+    .sort((a, b) => b.score - a.score)
     .slice(0, 20);
 
   return buildHappyNewsResponse(items);
@@ -160,11 +211,11 @@ async function fetchAllFeeds() {
 function buildHappyNewsResponse(items: HappyNewsItem[]) {
   const drafts = items.map((item, index) => ({
     id: `happy-news-${index + 1}`,
-    angle: `Happy ${item.happinessScore}/10 - ${item.source}`,
+    angle: `${item.category || "Happy News"} - ${item.source}`,
     content: toPostText(item),
     imageUrl: happyNewsImage,
     sourceTweetIds: [item.url],
-    suggestedVisual: `[News Visual] Positive-news image from the linked story. Happiness: ${item.happinessScore}/10. Score reason: ${item.reason}`,
+    suggestedVisual: `[News Visual] Positive-news image from the linked story. Score: ${item.score}/10. Summary: ${item.summary}`,
     source: `${item.source} - ${item.url}`
   }));
 
@@ -175,7 +226,7 @@ function buildHappyNewsResponse(items: HappyNewsItem[]) {
     username: "happynews",
     createdAt: item.publishedAt,
     category: "buzz" as const,
-    engagement: item.happinessScore * 10 - index
+    engagement: item.score * 10 - index
   }));
 
   return {
@@ -183,10 +234,10 @@ function buildHappyNewsResponse(items: HappyNewsItem[]) {
     drafts,
     signals,
     summary: {
-      score: `${items.length} happy news item${items.length === 1 ? "" : "s"} scored 8+ in the last 48 hours.`,
-      controversy: items[0]?.title ?? "No score 8+ happy news items found in the last 48 hours.",
-      fanReaction: items[0] ? `Top score: ${items[0].happinessScore}/10 from ${items[0].source}.` : "Feeds checked and deduped.",
-      extra: "Sources include positive news RSS feeds plus Google News happiness searches."
+      score: `${items.length} genuinely positive news item${items.length === 1 ? "" : "s"} found in the last 48 hours.`,
+      controversy: items[0]?.title ?? "No genuinely positive news items found in the last 48 hours.",
+      fanReaction: items[0] ? `Top score: ${items[0].score}/10 from ${items[0].source}.` : "Feeds checked and deduped.",
+      extra: "Each item uses OpenAI JSON analysis with is_positive, score, category, summary, and x_post."
     }
   };
 }
@@ -217,7 +268,7 @@ function parseRssItems(xml: string, fallbackSource: string): Omit<FeedItem, "id"
   });
 }
 
-function parseOpenAIHappyNews(text: string): { items: HappyNewsItem[] } {
+function parseOpenAIHappyNews(text: string): { items: HappyNewsAnalysis[] } {
   const trimmed = text.trim();
   const jsonText = trimmed.startsWith("{") ? trimmed : trimmed.match(/\{[\s\S]*\}/)?.[0] ?? "";
 
@@ -225,7 +276,7 @@ function parseOpenAIHappyNews(text: string): { items: HappyNewsItem[] } {
     throw new Error("OpenAI did not return JSON.");
   }
 
-  const parsed = JSON.parse(jsonText) as { items?: HappyNewsItem[] };
+  const parsed = JSON.parse(jsonText) as { items?: HappyNewsAnalysis[] };
 
   return {
     items: Array.isArray(parsed.items) ? parsed.items : []
@@ -274,7 +325,12 @@ function stripHtml(value: string) {
 }
 
 function toPostText(item: HappyNewsItem) {
-  const text = item.summary || item.title;
+  const text = item.xPost || item.title;
 
   return text.length <= 280 ? text : `${text.slice(0, 277).trim()}...`;
+}
+
+function clampScore(score: number) {
+  if (!Number.isFinite(score)) return 1;
+  return Math.min(10, Math.max(1, Math.round(score)));
 }

@@ -4,7 +4,7 @@ import { generateFifaDraftsWithGrok } from "@/lib/grok";
 export async function POST() {
   try {
     const { mode, signals, drafts, summary } = await generateFifaDraftsWithGrok();
-
+    
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
       mode,

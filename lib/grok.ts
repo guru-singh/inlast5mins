@@ -1,6 +1,6 @@
 import { DraftPost, XSignal } from "./types";
 
-const GROK_ENDPOINT = "https://api.x.ai/v1/responses";
+const GROK_ENDPOINT = "https://api.x.ai/v1/chat/completions";
 const DEFAULT_MODEL = "grok-4.3";
 
 const defaultImage = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1200&q=80";
@@ -43,7 +43,27 @@ Rules:
 - Include at least one sharper or opinionated take
 - Make the tweets feel current and relevant to the actual days leading up to the tournament
 
-For images: Search the web for relevant public images and use them when suitable.`;
+For images: Search the web for relevant public images and use them when suitable.
+
+Return JSON with this exact shape:
+{
+  "summary": {
+    "score": "short score/prediction summary",
+    "controversy": "short controversy summary",
+    "fanReaction": "short fan reaction summary",
+    "extra": "short stadium/ticket/hype summary"
+  },
+  "tweets": [
+    {
+      "angle": "Tweet 1 - Score/Predictions",
+      "content": "tweet text under 280 characters",
+      "imageUrl": "public https image URL suitable for this tweet",
+      "source": "page URL for the image or context"
+    }
+  ]
+}
+
+`;
 
 export const globalIconsPrompt = `You are a sharp business and tech news social media writer.
 
@@ -135,7 +155,9 @@ export async function generateFifaDraftsWithGrok(): Promise<{
   if (!apiKey) {
     throw new Error("Missing XAI_API_KEY. Add your xAI API key to .env.local, then restart the dev server.");
   }
-
+  // console.log("=============================")
+  // console.log(fifaGrokPrompt);
+  // console.log("=============================")
   const response = await fetch(GROK_ENDPOINT, {
     method: "POST",
     headers: {
@@ -143,59 +165,38 @@ export async function generateFifaDraftsWithGrok(): Promise<{
       "content-type": "application/json"
     },
     body: JSON.stringify({
-      model: process.env.XAI_MODEL ?? DEFAULT_MODEL,
-      input: [
+      model: 'grok-3-latest',
+      temperature: 0.85,        // ← This makes responses varied (like grok.com)
+      top_p: 0.95,
+      max_tokens: 4000,
+      response_format: { type: "json_object" },   // Still include this
+      messages: [
         {
           role: "system",
           content:
-            "Return only valid JSON. Do not include markdown. Keep every tweet under 280 characters."
+            `You are a strict JSON-only generator. 
+You must return ONLY valid JSON. 
+Do NOT include any text before or after the JSON object. 
+Do NOT use markdown code blocks. 
+Do NOT say "Here is the JSON" or anything similar. 
+Just output pure JSON that matches the requested structure exactly.`
         },
         {
           role: "user",
-          content: `${fifaGrokPrompt}
-
-Current date: May 30, 2026.
-
-Return JSON with this exact shape:
-{
-  "summary": {
-    "score": "short score/prediction summary",
-    "controversy": "short controversy summary",
-    "fanReaction": "short fan reaction summary",
-    "extra": "short stadium/ticket/hype summary"
-  },
-  "tweets": [
-    {
-      "angle": "Tweet 1 - Score/Predictions",
-      "content": "tweet text under 280 characters",
-      "imageUrl": "public https image URL suitable for this tweet",
-      "source": "page URL for the image or context"
-    }
-  ]
-}`
+          content: fifaGrokPrompt
         }
       ],
-      tools: [
-        {
-          type: "x_search",
-          from_date: "2026-05-29",
-          to_date: "2026-05-30",
-          enable_image_understanding: true
-        },
-        {
-          type: "web_search",
-          enable_image_understanding: true
-        }
-      ]
+      
     })
   });
 
   const payload = await response.json();
 
+  //console.log("Grok raw response", payload);
   if (!response.ok) {
     throw new Error(`Grok request failed: ${response.status} ${JSON.stringify(payload)}`);
   }
-
+  
   const text = extractText(payload);
   const parsed = parseGrokJson(text);
 
@@ -329,23 +330,22 @@ function buildResponse(mode: "grok", payload: GrokPayload) {
   };
 }
 
-function extractText(payload: unknown): string {
-  const response = payload as {
-    output_text?: string;
-    output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
-  };
-
-  if (response.output_text) {
-    return response.output_text;
+function extractText(payload: any): string {
+  // Standard chat completions format
+  if (payload?.choices?.[0]?.message?.content) {
+    return payload.choices[0].message.content;
   }
 
-  return (
-    response.output
-      ?.flatMap((item) => item.content ?? [])
-      .map((content) => content.text)
-      .filter(Boolean)
-      .join("\n") ?? ""
-  );
+  // Fallbacks (just in case)
+  if (payload?.output_text) {
+    return payload.output_text;
+  }
+
+  if (payload?.choices?.[0]?.text) {
+    return payload.choices[0].text;
+  }
+
+  return "";
 }
 
 function parseGrokJson(text: string): GrokPayload {
