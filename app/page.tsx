@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { BriefcaseBusiness, Check, Copy, ExternalLink, Footprints, Loader2, MessageSquare, Newspaper, Radio, Send, Sparkles } from "lucide-react";
+import { BriefcaseBusiness, Check, Copy, ExternalLink, Footprints, Loader2, MessageSquare, Newspaper, Radio, Send, SmilePlus, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DraftPost, DraftResponse, PublishResult } from "@/lib/types";
 
@@ -12,6 +12,7 @@ export default function Home() {
   const [isFetchingGlobal, setIsFetchingGlobal] = useState(false);
   const [isFetchingGoogleNews, setIsFetchingGoogleNews] = useState(false);
   const [isFetchingHappyFeet, setIsFetchingHappyFeet] = useState(false);
+  const [isFetchingHappyNews, setIsFetchingHappyNews] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PublishResult[]>([]);
@@ -21,7 +22,7 @@ export default function Home() {
     [data, selected]
   );
   const hasDrafts = Boolean(data?.drafts.length);
-  const isBusy = isFetching || isFetchingGlobal || isFetchingGoogleNews || isFetchingHappyFeet;
+  const isBusy = isFetching || isFetchingGlobal || isFetchingGoogleNews || isFetchingHappyFeet || isFetchingHappyNews;
   const isHappyFeet = data?.topic === "happy-feet";
   const allDraftsSelected = hasDrafts && selectedDrafts.length === data?.drafts.length;
   const someDraftsSelected = selectedDrafts.length > 0 && !allDraftsSelected;
@@ -111,6 +112,28 @@ export default function Home() {
       setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
     } finally {
       setIsFetchingHappyFeet(false);
+    }
+  }
+
+  async function fetchHappyNews() {
+    setIsFetchingHappyNews(true);
+    setError("");
+    setResults([]);
+
+    try {
+      const response = await fetch("/api/happy-news", { method: "POST" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to fetch Happy News.");
+      }
+
+      setData(payload);
+      setSelected(new Set(payload.drafts.map((draft: DraftPost) => draft.id)));
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+    } finally {
+      setIsFetchingHappyNews(false);
     }
   }
 
@@ -214,6 +237,14 @@ ${draft.content}`;
             {isFetchingHappyFeet ? <Loader2 className="animate-spin" size={19} /> : <Footprints size={19} />}
             Happy Feet
           </button>
+          <button
+            onClick={fetchHappyNews}
+            disabled={isBusy}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-emerald-700 px-5 font-bold text-white shadow-lg shadow-emerald-900/15 transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isFetchingHappyNews ? <Loader2 className="animate-spin" size={19} /> : <SmilePlus size={19} />}
+            Happy News
+          </button>
         </div>
       </header>
 
@@ -224,10 +255,10 @@ ${draft.content}`;
       ) : null}
 
       <section className="grid gap-4 py-6 lg:grid-cols-4">
-        <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : isHappyFeet ? "Matched slot" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
-        <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : isHappyFeet ? "Persona" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
-        <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : isHappyFeet ? "Activity" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
-        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Google News and Happy Feet use public feeds."} />
+        <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : data?.topic === "happy-news" ? "Happy score" : isHappyFeet ? "Matched slot" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
+        <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : data?.topic === "happy-news" ? "Top story" : isHappyFeet ? "Persona" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
+        <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : data?.topic === "happy-news" ? "Best score" : isHappyFeet ? "Activity" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
+        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Happy News needs OPENAI_API_KEY."} />
       </section>
 
       <section className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
@@ -355,7 +386,8 @@ ${draft.content}`;
               Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> or{" "}
               <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts, or{" "}
               <span className="font-bold text-slate-950">Google News FIFA 2026</span> to fetch the latest RSS news, or{" "}
-              <span className="font-bold text-slate-950">Happy Feet</span> to load the current sheet prompt.
+              <span className="font-bold text-slate-950">Happy Feet</span> to load the current sheet prompt, or{" "}
+              <span className="font-bold text-slate-950">Happy News</span> to score positive stories with OpenAI.
             </div>
           ) : null}
 
@@ -370,7 +402,9 @@ ${draft.content}`;
         <aside className="h-fit rounded-md bg-slate-950 p-5 text-white shadow-xl shadow-slate-950/15">
           <h2 className="text-xl font-black">Publish queue</h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            {isHappyFeet
+            {data?.topic === "happy-news"
+              ? "Happy News uses OpenAI to dedupe, score, summarize, and keep top 20 score 8+ items."
+              : isHappyFeet
               ? "Happy Feet loads one Google Sheet record for the current India time slot."
               : data?.mode === "rss"
               ? "Google News RSS results are filtered to the last 24 hours."

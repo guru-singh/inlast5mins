@@ -20,8 +20,8 @@ export type DraftPost = {
 
 export type DraftResponse = {
   generatedAt: string;
-  mode: "grok" | "rss" | "sheet";
-  topic: "fifa" | "global-icons" | "google-news-fifa" | "happy-feet";
+  mode: "grok" | "rss" | "sheet" | "openai";
+  topic: "fifa" | "global-icons" | "google-news-fifa" | "happy-feet" | "happy-news";
   sourceWindow: string;
   signals: XSignal[];
   drafts: DraftPost[];
