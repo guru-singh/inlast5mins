@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { BriefcaseBusiness, Check, Copy, ExternalLink, Footprints, Loader2, MessageSquare, Newspaper, Radio, Send, SmilePlus, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DraftPost, DraftResponse, PublishResult } from "@/lib/types";
@@ -200,7 +199,7 @@ ${draft.content}`;
           </div>
           <h1 className="text-4xl font-black tracking-normal text-slate-950 sm:text-6xl">inLast5Mins</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-700">
-            Ask Grok for a late-May 2026 FIFA World Cup thread, shape it into six ready-to-post tweets,
+            Generate current social drafts from Gemini, Grok, RSS, sheets, and OpenAI workflows,
             pair each with a public image, and publish the selected posts.
           </p>
         </div>
@@ -258,7 +257,7 @@ ${draft.content}`;
         <Insight title={data?.topic === "global-icons" ? "Research mode" : data?.topic === "google-news-fifa" ? "RSS results" : data?.topic === "happy-news" ? "Happy score" : isHappyFeet ? "Matched slot" : "Latest match score"} value={data?.summary.score ?? "Click a button to fetch drafts or news."} />
         <Insight title={data?.topic === "global-icons" ? "Verification" : data?.topic === "google-news-fifa" ? "Latest headline" : data?.topic === "happy-news" ? "Top story" : isHappyFeet ? "Persona" : "Controversy"} value={data?.summary.controversy ?? "Waiting for live signals."} />
         <Insight title={data?.topic === "global-icons" ? "People covered" : data?.topic === "google-news-fifa" ? "Next headline" : data?.topic === "happy-news" ? "Best score" : isHappyFeet ? "Activity" : "Fan reaction"} value={data?.summary.fanReaction ?? "Results will appear below."} />
-        <Insight title="Also trending" value={data?.summary.extra ?? "Grok buttons need XAI_API_KEY. Happy News needs OPENAI_API_KEY."} />
+        <Insight title="Also trending" value={data?.summary.extra ?? "FIFA needs GEMINI_API_KEY. Happy News needs OPENAI_API_KEY."} />
       </section>
 
       <section className="grid flex-1 gap-6 lg:grid-cols-[1fr_340px]">
@@ -288,24 +287,20 @@ ${draft.content}`;
                 <div className="grid gap-3 bg-slate-100 p-3 sm:grid-cols-2 lg:grid-cols-4">
                   {["/images/1.jpg", "/images/2.jpg", "/images/3.jpg", "/images/4.jpg"].map((imageUrl, index) => (
                     <div key={imageUrl} className="relative h-[250px] overflow-hidden rounded-md bg-slate-200">
-                      <Image
+                      <img
                         src={imageUrl}
                         alt={`Happy Feet reference ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        className="h-full w-full object-cover"
                       />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="relative aspect-[16/9] bg-slate-200">
-                  <Image
+                  <img
                     src={draft.imageUrl}
                     alt={draft.angle}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="h-full w-full object-cover"
                   />
                 </div>
               )}
@@ -384,7 +379,7 @@ ${draft.content}`;
           {!data ? (
             <div className="rounded-md border border-dashed border-slate-300 bg-white/65 p-8 text-slate-600 md:col-span-2">
               Press <span className="font-bold text-slate-950">FIFA 2026 on X</span> or{" "}
-              <span className="font-bold text-slate-950">Global icons news</span> to generate Grok draft posts, or{" "}
+              <span className="font-bold text-slate-950">Global icons news</span> to generate business-icon drafts, or{" "}
               <span className="font-bold text-slate-950">Google News FIFA 2026</span> to fetch the latest RSS news, or{" "}
               <span className="font-bold text-slate-950">Happy Feet</span> to load the current sheet prompt, or{" "}
               <span className="font-bold text-slate-950">Happy News</span> to score positive stories with OpenAI.
@@ -408,7 +403,9 @@ ${draft.content}`;
               ? "Happy Feet loads one Google Sheet record for the current India time slot."
               : data?.mode === "rss"
               ? "Google News RSS results are filtered to the last 24 hours."
-              : "Grok generation is used for draft requests."}
+              : data?.topic === "fifa"
+              ? "FIFA drafts are generated with Gemini."
+              : "Draft generation is used for selected workflows."}
           </p>
 
           <div className="mt-5 rounded-md bg-white/8 p-4">

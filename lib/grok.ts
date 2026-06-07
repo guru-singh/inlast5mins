@@ -23,48 +23,18 @@ const businessImages = [
 ];
 
 export const fifaGrokPrompt = `
-Create a ready-to-post series of 6 engaging tweets about the FIFA World Cup 2026 in the current pre-tournament period (just before the tournament starts).
-
-Make the tweets feel timely for right now — reference how close we are to kickoff, current fan sentiment, ticket issues, and any ongoing discussions. Avoid generic or outdated statements.
-
-Cover these angles across the 6 tweets (blend or reorder them naturally):
-- A prediction or talking point about the opening match
-- Global excitement mixed with real fan frustrations (especially around tickets and access)
-- The 16 venues and atmosphere across USA, Canada, and Mexico
-- Ticket pricing issues and ongoing fan disappointment
-- Off-field controversies (heat protocols, geopolitics, 48-team format)
-- Real-time fan reactions, emotions, and viral moments from ongoing matches
-- Overall historic nature of this World Cup + strong engagement CTA
-
-Rules:
-- Keep every tweet under 220 characters
-- Use emojis and hashtags (#FIFAWorldCup2026 #WorldCup2026) naturally
-- Make the tone conversational, slightly witty, and reply-friendly
-- Include at least one sharper or opinionated take
-- Make the tweets feel current and relevant to the actual days leading up to the tournament
-
-For images: Search the web for relevant public images and use them when suitable.
-
-Return JSON with this exact shape:
-{
-  "summary": {
-    "score": "short score/prediction summary",
-    "controversy": "short controversy summary",
-    "fanReaction": "short fan reaction summary",
-    "extra": "short stadium/ticket/hype summary"
-  },
-  "tweets": [
-    {
-      "angle": "Tweet 1 - Score/Predictions",
-      "content": "tweet text under 280 characters",
-      "imageUrl": "public https image URL suitable for this tweet",
-      "source": "page URL for the image or context"
-    }
-  ]
-}
+System Role & Task:
+Act as a sports news aggregator. Search the web for the latest, most important real-time news about the FIFA World Cup 2026. Keep in mind the current context: we are just days away from the June 11 opening match.
+Selection:
+Select 6 important news stories happening right now 
+Writing Style:
+For each story, write a draftPost. You must write this like a casual fan who uses simple, everyday words (low vocabulary). Keep sentences very short. No big words. Sound excited but use basic English.
+Image Rules:
+To guarantee no broken links, do not scrape news websites for images. Instead, use a reliable dynamic AI image generator URL based on the news topic. Use this exact format:[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/)[simple-keywords-separated-by-hyphens]?width=1080&height=1080&nologo=true(Example: [https://image.pollinations.ai/prompt/soccer-fans-cheering-in-stadium?width=1080&height=1080&nologo=true](https://image.pollinations.ai/prompt/soccer-fans-cheering-in-stadium?width=1080&height=1080&nologo=true))
+Output Format:
+Return ONLY valid JSON. Do not include any intro text, outro text, or markdown formatting blocks (like JSON. I need the raw JSON array.
 
 `;
-
 export const globalIconsPrompt = `You are a sharp business and tech news social media writer.
 
 Your task is to create publication-ready social media post drafts for global business icons based **only** on verified news from the **last 48 hours**.
@@ -330,19 +300,29 @@ function buildResponse(mode: "grok", payload: GrokPayload) {
   };
 }
 
-function extractText(payload: any): string {
+function extractText(payload: unknown): string {
+  const response = payload as {
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
+      text?: string;
+    }>;
+    output_text?: string;
+  };
+
   // Standard chat completions format
-  if (payload?.choices?.[0]?.message?.content) {
-    return payload.choices[0].message.content;
+  if (response.choices?.[0]?.message?.content) {
+    return response.choices[0].message.content;
   }
 
   // Fallbacks (just in case)
-  if (payload?.output_text) {
-    return payload.output_text;
+  if (response.output_text) {
+    return response.output_text;
   }
 
-  if (payload?.choices?.[0]?.text) {
-    return payload.choices[0].text;
+  if (response.choices?.[0]?.text) {
+    return response.choices[0].text;
   }
 
   return "";
